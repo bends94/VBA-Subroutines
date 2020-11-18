@@ -1,0 +1,185 @@
+Sub Product_Cutsheets()
+    Dim ws As Worksheet
+    Dim lastrow As Integer
+    Dim partName As String
+    Dim DB As DAO.Database
+    Dim T As TableDef
+    Dim i As Integer
+    Dim repeat As Boolean
+    Dim strSql As String
+    Dim no_match As Boolean
+    Dim file, save_file As String
+    Dim jobnum, folerName, folderNameFinal As String
+    
+    no_match = True
+    repeat = False
+    i = 4
+    'Set ws var and find lastrow for loop
+    Set ws = ActiveWorkbook.Worksheets("Totalized BoM")
+    lastrow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    jobnum = InputBox("What is the Job Number? (Form XXXXXX-C)")
+ 
+    folderName = "C:\Users\" & Environ("UserName") & "\XXX\XXXXXX Jobs - Documents\"
+    folderName = folderName & "20" & Left(jobnum, 2) & " Jobs\"
+    folderNameFinal = Dir(folderName & jobnum & "*", vbDirectory)
+    
+    folderNameFinal = folderName & folderNameFinal & "\XXX\XXX\Job Submittals\"
+    If Len(Dir(folderNameFinal & "Cutsheets", vbDirectory)) = 0 Then
+        MkDir folderNameFinal & "Cutsheets"
+    End If
+    folderNameFinal = folderNameFinal & "Cutsheets\"
+    If Len(Dir(folderNameFinal & "Install", vbDirectory)) = 0 Then
+        MkDir folderNameFinal & "Install"
+    End If
+    If Len(Dir(folderNameFinal & "Cutsheet", vbDirectory)) = 0 Then
+        MkDir folderNameFinal & "Cutsheet"
+    End If
+    
+    Set DB = OpenDatabase("C:\Users\XXX\Desktop\Parts_Database.accdb")
+    Dim rs As DAO.Recordset
+    For Row = 4 To lastrow
+        partName = ws.Range("A" & Row).Value
+        For Each Table In DB.TableDefs
+            If InStr(Table.Name, "MSy") = 0 Then
+             strSql = "SELECT * FROM " & Table.Name & " WHERE ID = '" & partName & "'"
+             Set rs = DB.OpenRecordset(strSql)
+             If Not rs.EOF Then
+                no_match = False
+                file = rs!Cutsheet
+                For Files = 4 To i
+                    If StrComp(ws.Range("H" & Files), Replace(file, """", "")) = 0 Then
+                        ws.Range("I" & Files) = ws.Range("I" & Files).Value & " , " & partName & " / Device associated with: " & ws.Range("E" & Row)
+                        repeat = True
+                        Exit For
+                    End If
+                Next Files
+                If repeat = False Then
+                    ws.Range("H" & i).Value = Replace(file, """", "")
+                    ws.Range("I" & i).Value = partName & " / Device associated with: " & ws.Range("E" & Row).Value
+                    i = i + 1
+                Else
+                    repeat = False
+                End If
+                
+                Exit For
+            End If
+            End If
+        Next Table
+        If no_match Then
+            Debug.Print partName
+        End If
+        no_match = True
+        
+    Next Row
+    
+    For Row = 4 To i
+        file = ws.Range("H" & Row).Value
+        If Not StrComp(file, "NA") = 0 Then
+            save_file = folderNameFinal & "Cutsheet\" & Right(file, Len(file) - InStrRev(file, "\"))
+            'Debug.Print save_file
+            Call Product_Cutsheets_Save(file, save_file, ws.Range("I" & Row).Value)
+        End If
+    Next Row
+    
+    i = 4
+    'IOM
+    For Row = 4 To lastrow
+        partName = ws.Range("A" & Row).Value
+        For Each Table In DB.TableDefs
+            If InStr(Table.Name, "MSy") = 0 Then
+             strSql = "SELECT * FROM " & Table.Name & " WHERE ID = '" & partName & "'"
+             Set rs = DB.OpenRecordset(strSql)
+             If Not rs.EOF Then
+                no_match = False
+                file = rs!IOM
+                For Files = 4 To i
+                    If StrComp(ws.Range("K" & Files), Replace(file, """", "")) = 0 Then
+                        ws.Range("L" & Files) = ws.Range("L" & Files).Value & " , " & partName & " / Device associated with: " & ws.Range("E" & Row)
+                        repeat = True
+                        Exit For
+                    End If
+                Next Files
+                If repeat = False Then
+                    ws.Range("K" & i).Value = Replace(file, """", "")
+                    ws.Range("L" & i).Value = partName & " / Device associated with: " & ws.Range("E" & Row).Value
+                    i = i + 1
+                Else
+                    repeat = False
+                End If
+                
+                Exit For
+            End If
+            End If
+        Next Table
+        If no_match Then
+            Debug.Print partName
+        End If
+        no_match = True
+        
+    Next Row
+    
+    For Row = 4 To i - 1
+        file = ws.Range("K" & Row).Value
+        If Not StrComp(file, "NA") = 0 Then
+            save_file = folderNameFinal & "Install\" & Right(file, Len(file) - InStrRev(file, "\"))
+            'Debug.Print save_file
+            Call Product_Cutsheets_Save(file, save_file, ws.Range("L" & Row).Value)
+        End If
+    Next Row
+    
+    
+End Sub
+
+
+Sub Product_Cutsheets_Save(OpenPath, SavePath As String, partStr As String)
+    Dim app As Object
+    Dim AVDoc As Object
+    Dim AForm As Object
+    Dim props As Object
+    Dim annot As Object
+    Dim linecount As Integer
+    
+    linecount = (Len(partStr) - Len(Replace(partStr, " , ", ""))) / Len(" , ")
+    partStr = Replace(partStr, " , ", vbCr)
+    Set AcroApp = CreateObject("AcroExch.App")
+    Set gpdDoc = CreateObject("AcroExch.PDDoc")
+    'open the file
+    If gpdDoc.Open(OpenPath) Then
+        Set jso = gpdDoc.GetJSObject
+    'get at the jso
+    If Not jso Is Nothing Then
+        If gpdDoc.Open(dest) Then
+            DoEvents
+            Set jso = gpdDoc.GetJSObject
+            DoEvents
+        End If
+    
+        Set annot = jso.addAnnot
+        Set props = annot.getProps
+        props.Type = "FreeText"
+        props.Type = "FreeText"
+        props.Page = 0
+        props.Name = "Parts"
+        props.rect = Array(10, 750 - (linecount + 1) * 15, 300, 750)
+        props.Author = "BDS"
+        props.contents = partStr
+        props.fillColor = Array("RGB", 255, 255, 255)
+        annot.setprops props
+        Set props = annot.getProps
+
+    End If
+    If gpdDoc.Save(1, SavePath) = False Then
+        Debug.Print "Unable to save image:" & OpenPath
+        Debug.Print SavePath
+
+    End If
+    gpdDoc.Close
+    Set jso = Nothing
+    Set annot = Nothing
+    Set props = Nothing
+    End If
+    Set gpdDoc = Nothing
+    Set AcroApp = Nothing
+    'AcroApp.Close
+End Sub
