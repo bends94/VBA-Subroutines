@@ -1,0 +1,40 @@
+Sub TotBoM()
+    Dim ws As Worksheet
+    Dim wst As Worksheet
+    Dim repeat As Boolean
+    
+    repeat = False
+    Set ws = ActiveWorkbook.Worksheets("BoM")
+    Set wst = ActiveWorkbook.Worksheets("Totalized BoM")
+    lastrow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+    
+    Call clear_contents(wst, "A4")
+    
+    For i = 3 To lastrow
+        lastrow_t = wst.Cells(wst.Rows.Count, "A").End(xlUp).Row
+        For j = 3 To lastrow_t
+            If StrComp(ws.Range("C" & i).Value, wst.Range("A" & j).Value) = 0 Then
+                repeat = True
+                wst.Range("B" & j).Value = wst.Range("B" & j).Value + ws.Range("B" & i).Value
+                wst.Range("E" & j).Value = wst.Range("E" & j).Value & " ; " & ws.Range("E" & i).Value
+            End If
+        Next j
+        If repeat = False Then
+            wst.Range("A" & lastrow_t + 1).Value = ws.Range("C" & i).Value
+            wst.Range("B" & lastrow_t + 1).Value = ws.Range("B" & i).Value
+            wst.Range("E" & lastrow_t + 1).Value = ws.Range("E" & i).Value
+        End If
+        repeat = False
+    Next i
+    
+    Call FilterAB(wst)
+    
+    With wst.Range("A4:E" & lastrow_t + 1)
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .BorderAround xlContinuous
+        .Borders(xlInsideHorizontal).LineStyle = xlContinuous
+        .Borders(xlInsideVertical).LineStyle = xlContinuous
+    End With
+
+End Sub
